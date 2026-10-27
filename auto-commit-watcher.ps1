@@ -1,145 +1,94 @@
-<#
-.SYNOPSIS
-    Auto-commit watcher for Git repos. Watches folder, debounces changes, commits + pushes to GitHub.
-
-.PARAMETER Path
-    Folder to watch (default: current directory)
-
-.PARAMETER DebounceSeconds
-    Seconds of inactivity before committing (default: 5)
-
-.PARAMETER CommitPrefix
-    Prefix for commit messages (default: "auto")
-#>
-
 param(
-    [string]$Path = (Get-Location).Path,
+    [string]$Path = $PSScriptRoot,
     [int]$DebounceSeconds = 5,
     [string]$CommitPrefix = "auto"
 )
 
 $ErrorActionPreference = "Stop"
+$watchPath = (Resolve-Path $Path).Path
+$logPath = Join-Path $env:LOCALAPPDATA "TalentBridge_V2\auto-push.log"
+$excludedPaths = @("TalentBridge_V2_Master_Prompt.md")
+$sensitivePattern = '(^|/)\.env($|\.)|(^|/)(id_rsa|id_ed25519|id_dsa|id_ecdsa|credentials|\.npmrc|\.netrc|\.dockercfg)$|\.(key|pem|p12|pfx|ppk|jks|keystore|truststore|bak|backup|swp|swo)$'
 
-# Resolve path
-$watchPath = Resolve-Path $Path
-Write-Host "[INFO] Watching: $watchPath" -ForegroundColor Cyan
-Write-Host "[INFO] Debounce: ${DebounceSeconds}s | Prefix: $CommitPrefix" -ForegroundColor Cyan
-Write-Host "[INFO] Press Ctrl+C to stop" -ForegroundColor Yellow
-Write-Host ""
+New-Item -ItemType Directory -Force -Path (Split-Path $logPath) | Out-Null
 
-# Verify git repo
-if (-not (Test-Path (Join-Path $watchPath ".git"))) {
-    Write-Error "Not a git repository: $watchPath"
-    exit 1
+function Write-Log {
+    param([string]$Message)
+    $line = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message"
+    Write-Host $line
+    Add-Content -LiteralPath $logPath -Value $line
 }
 
-cd $watchPath
+Set-Location $watchPath
 $origin = git remote get-url origin 2>$null
-if (-not $origin) {
-    Write-Error "No 'origin' remote configured"
-    exit 1
+if ($LASTEXITCODE -ne 0 -or $origin -notmatch '^https://github\.com/farhadakhtar/TalentBridge_V2\.git$') {
+    throw "origin must be https://github.com/farhadakhtar/TalentBridge_V2.git"
 }
-Write-Host "[INFO] Origin: $origin" -ForegroundColor Green
 
-# Sensitive file patterns - never commit these
-$sensitivePatterns = @(
-    "*.env", "*.env.*", "*.key", "*.pem", "*.pfx", "*.ppk",
-    "id_rsa", "id_ed25519", "id_dsa", "id_ecdsa",
-    "credentials", ".npmrc", ".netrc", ".dockercfg",
-    "*.p12", "*.jks", "*.keystore", "*.truststore",
-    "*.bak", "*.backup", "*.swp", "*.swo"
-)
+$branch = git branch --show-current
+if ($LASTEXITCODE -ne 0 -or -not $branch) {
+    throw "Could not determine the current branch"
+}
 
-function Test-SensitiveFile {
-    param([string]$File)
-    foreach ($pattern in $sensitivePatterns) {
-        if ($File -like $pattern) { return $true }
+Write-Log "Watching $watchPath; debounce ${DebounceSeconds}s; pushing to $origin ($branch)"
+$lastStatus = $null
+$stableSince = Get-Date
+
+while ($true) {
+    $status = @(git status --porcelain --untracked-files=all)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "git status failed; retrying"
+        Start-Sleep -Seconds 2
+        continue
     }
-    return $false
-}
 
-function UnstageSensitiveFiles {
-    $staged = git diff --name-only --cached
-    foreach ($file in $staged) {
-        if (Test-SensitiveFile $file) {
-            git reset HEAD -- "$file" 2>$null
-            Write-Host "[WARN] Unstaged sensitive file: $file" -ForegroundColor Yellow
+    $fingerprint = $status -join "`n"
+    if ($fingerprint -ne $lastStatus) {
+        $lastStatus = $fingerprint
+        $stableSince = Get-Date
+    }
+
+    if ($status.Count -gt 0 -and ((Get-Date) - $stableSince).TotalSeconds -ge $DebounceSeconds) {
+        $safePaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($entry in $status) {
+            if ($entry.Length -lt 4) { continue }
+            $pathParts = $entry.Substring(3) -split ' -> ', 2
+            foreach ($file in $pathParts) {
+                $normalized = $file.Replace('\', '/')
+                if ($excludedPaths -contains $normalized -or $normalized -match $sensitivePattern) { continue }
+                [void]$safePaths.Add($file)
+            }
+        }
+
+        if ($safePaths.Count -gt 0) {
+            $files = @($safePaths)
+            $addOutput = git add -- $files 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Write-Log "git add failed: $($addOutput -join ' ')"
+            }
+            else {
+                $message = "${CommitPrefix}: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - $($files.Count) file(s) changed"
+                $commitOutput = git commit -m $message -- $files 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Log "Committed $($files.Count) file(s): $message"
+                }
+                else {
+                    Write-Log "git commit failed: $($commitOutput -join ' ')"
+                }
+            }
         }
     }
-}
 
-# Debounce timer
-$timer = $null
-$pending = $false
-$commitCount = 0
-
-# FileSystemWatcher
-$watcher = New-Object System.IO.FileSystemWatcher
-$watcher.Path = $watchPath
-$watcher.IncludeSubdirectories = $true
-$watcher.NotifyFilter = [System.IO.NotifyFilters]::FileName -bor [System.IO.NotifyFilters]::LastWrite -bor [System.IO.NotifyFilters]::CreationTime -bor [System.IO.NotifyFilters]::Size
-$watcher.EnableRaisingEvents = $true
-
-$action = {
-    $global:pending = $true
-    if ($global:timer) { $global:timer.Dispose() }
-    $global:timer = New-Object System.Timers.Timer($DebounceSeconds * 1000)
-    $global:timer.AutoReset = $false
-    $global:timer.Elapsed += {
-        if ($global:pending) {
-            $global:pending = $false
-            CommitAndPush
+    $ahead = git rev-list --count '@{u}..HEAD' 2>$null
+    if ($LASTEXITCODE -eq 0 -and [int]$ahead -gt 0) {
+        $pushOutput = git push -u origin $branch 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log "Pushed $branch to origin"
+        }
+        else {
+            Write-Log "git push failed; will retry: $($pushOutput -join ' ')"
         }
     }
-    $global:timer.Start()
-}
 
-Register-ObjectEvent -InputObject $watcher -EventName Changed -Action $action | Out-Null
-Register-ObjectEvent -InputObject $watcher -EventName Created -Action $action | Out-Null
-Register-ObjectEvent -InputObject $watcher -EventName Deleted -Action $action | Out-Null
-Register-ObjectEvent -InputObject $watcher -EventName Renamed -Action $action | Out-Null
-
-function CommitAndPush {
-    $status = git status --porcelain
-    if (-not $status) { return }
-
-    $files = $status -split "`n" | Where-Object { $_ } | ForEach-Object { $_.Substring(3) }
-
-    git add -A
-    UnstageSensitiveFiles
-
-    $staged = git diff --name-only --cached
-    if (-not $staged) { return }
-
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $msg = "$CommitPrefix: $timestamp - $($staged.Count) file(s) changed"
-
-    try {
-        git commit -m $msg
-        $commitCount++
-        Write-Host "[$(Get-Date -Format HH:mm:ss)] [COMMIT #$commitCount] $msg" -ForegroundColor Green
-        $staged | ForEach-Object { Write-Host "  + $_" -ForegroundColor Gray }
-
-        $branch = git branch --show-current
-        git push -u origin $branch
-        Write-Host "  [OK] Pushed to origin/$branch" -ForegroundColor Cyan
-    }
-    catch {
-        Write-Host "  [ERROR] $_" -ForegroundColor Red
-    }
-    Write-Host ""
-}
-
-Write-Host "[READY] Watching for changes..." -ForegroundColor Green
-Write-Host ""
-
-try {
-    while ($true) { Start-Sleep -Seconds 3600 }
-}
-finally {
-    $watcher.EnableRaisingEvents = $false
-    $watcher.Dispose()
-    if ($timer) { $timer.Dispose() }
-    Get-EventSubscriber | Unregister-Event -Force
-    Write-Host "`n[STOPPED] Watcher ended. Total commits: $commitCount" -ForegroundColor Yellow
+    Start-Sleep -Seconds 2
 }
