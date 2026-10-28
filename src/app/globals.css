@@ -1,0 +1,371 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ---------------------------------------------------------------------------
+ * TalentBridge_V2 — "Dark Masterpiece" design tokens.
+ * Dark is the ONLY theme: :root and .dark carry identical deep-space values
+ * so shadcn Dialogs / Popovers / Selects / Toasts read native-dark everywhere.
+ * ------------------------------------------------------------------------- */
+:root,
+.dark {
+  color-scheme: dark;
+  --radius: 0.75rem;
+
+  /* Deep blue-black space */
+  --background: oklch(0.13 0.02 275);
+  --foreground: oklch(0.93 0.015 275);
+
+  --card: oklch(0.17 0.022 275);
+  --card-foreground: oklch(0.93 0.015 275);
+
+  --popover: oklch(0.16 0.022 275);
+  --popover-foreground: oklch(0.93 0.015 275);
+
+  --primary: oklch(0.92 0.01 275);
+  --primary-foreground: oklch(0.16 0.02 275);
+
+  --secondary: oklch(0.24 0.028 275);
+  --secondary-foreground: oklch(0.93 0.015 275);
+
+  --muted: oklch(0.23 0.025 275);
+  --muted-foreground: oklch(0.72 0.02 275);
+
+  --accent: oklch(0.25 0.03 275);
+  --accent-foreground: oklch(0.95 0.01 275);
+
+  --destructive: oklch(0.58 0.2 25);
+  --destructive-foreground: oklch(0.97 0.01 275);
+
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 10%);
+  --ring: oklch(0.65 0.15 262);
+
+  --chart-1: oklch(0.62 0.19 262);
+  --chart-2: oklch(0.72 0.12 210);
+  --chart-3: oklch(0.7 0.15 165);
+  --chart-4: oklch(0.78 0.15 85);
+  --chart-5: oklch(0.6 0.21 300);
+
+  --sidebar: oklch(0.15 0.022 275);
+  --sidebar-foreground: oklch(0.93 0.015 275);
+  --sidebar-primary: oklch(0.62 0.19 262);
+  --sidebar-primary-foreground: oklch(0.98 0.005 275);
+  --sidebar-accent: oklch(0.24 0.028 275);
+  --sidebar-accent-foreground: oklch(0.95 0.01 275);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.65 0.15 262);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Reusable dark surfaces & effects
+ * ------------------------------------------------------------------------- */
+.glass {
+  background: oklch(1 0 0 / 4%);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid oklch(1 0 0 / 8%);
+}
+
+.glass-strong {
+  background: oklch(0.19 0.025 275 / 88%);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid oklch(1 0 0 / 10%);
+  box-shadow:
+    0 24px 70px -18px oklch(0 0 0 / 65%),
+    inset 0 1px 0 0 oklch(1 0 0 / 6%);
+}
+
+.glass-destructive {
+  background: oklch(0.58 0.2 25 / 10%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid oklch(0.65 0.2 25 / 35%);
+}
+
+/* Gradient text helper (direction can be overridden with --tg-from/--tg-to) */
+.text-gradient {
+  background-image: linear-gradient(
+    92deg,
+    var(--tg-from, oklch(0.78 0.13 250)),
+    var(--tg-to, oklch(0.82 0.11 205))
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+ * Backdrops — cosmos nebula mesh + faint engineering grid
+ * ------------------------------------------------------------------------- */
+.bg-cosmos {
+  background-color: oklch(0.13 0.02 275);
+  background-image:
+    radial-gradient(56rem 30rem at 8% -10%, oklch(0.45 0.16 265 / 0.22), transparent 60%),
+    radial-gradient(44rem 26rem at 95% 8%, oklch(0.42 0.16 305 / 0.17), transparent 62%),
+    radial-gradient(50rem 36rem at 50% 118%, oklch(0.44 0.12 220 / 0.14), transparent 64%);
+}
+
+/* Calmer variant for authenticated shells (no blobs, keep focus on content) */
+.bg-cosmos-soft {
+  background-image:
+    radial-gradient(52rem 26rem at 12% -6%, oklch(0.5 0.14 265 / 0.08), transparent 58%),
+    radial-gradient(40rem 22rem at 92% 4%, oklch(0.45 0.14 300 / 0.06), transparent 60%);
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(to right, oklch(1 0 0 / 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 90% 72% at 50% 28%, black 26%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 72% at 50% 28%, black 26%, transparent 78%);
+}
+
+/* Floating aurora blobs (blurred radial divs) */
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+  will-change: transform;
+}
+@keyframes aurora-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(4%, -6%, 0) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-5%, 5%, 0) scale(0.95);
+  }
+}
+.animate-aurora-a {
+  animation: aurora-float 18s ease-in-out infinite;
+}
+.animate-aurora-b {
+  animation: aurora-float 24s ease-in-out infinite reverse;
+}
+.animate-aurora-c {
+  animation: aurora-float 30s ease-in-out infinite;
+  animation-delay: -8s;
+}
+
+/* Shimmer sweep used on funnel / DM-activity bars */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.animate-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    oklch(1 0 0 / 0.14) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.8s linear infinite;
+}
+
+/* Expanding ring pulse (notification dot, status indicators) */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 var(--pulse-color, oklch(0.72 0.15 262 / 0.45));
+  }
+  70% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.animate-pulse-ring {
+  animation: pulse-ring 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Slow grid drift */
+@keyframes grid-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 44px 44px;
+  }
+}
+.animate-grid-drift {
+  animation: grid-drift 14s linear infinite;
+}
+
+/* Shine sweep for gradient CTAs */
+.shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: 1;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    oklch(1 0 0 / 0.35) 50%,
+    transparent 58%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+.shine:hover::after {
+  transform: translateX(130%);
+}
+
+/* ---------------------------------------------------------------------------
+ * Selection, scrollbars, native dark inputs
+ * ------------------------------------------------------------------------- */
+::selection {
+  background: oklch(0.65 0.15 262 / 0.4);
+  color: oklch(0.98 0.01 275);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(1 0 0 / 0.14) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: oklch(1 0 0 / 0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.65 0.15 262 / 0.55);
+  background-clip: content-box;
+}
+
+/* Native date / time pickers inherit the dark scheme */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------------------
+ * Landing — keyword marquee + edge fade masks
+ * ------------------------------------------------------------------------- */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.animate-marquee {
+  animation: marquee 32s linear infinite;
+}
+.marquee-hover-pause:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+/* Soft fade at the horizontal edges (used by the marquee) */
+.mask-fade-x {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Ambient motion safety
+ * ------------------------------------------------------------------------- */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Respect users who prefer less motion: kill ambient loops
+   while keeping the app fully usable. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-aurora-a,
+  .animate-aurora-b,
+  .animate-aurora-c,
+  .animate-grid-drift,
+  .animate-shimmer,
+  .animate-pulse-ring,
+  .animate-marquee {
+    animation: none !important;
+  }
+  /* SMIL pulses inside the hero bridge SVG */
+  .bridge-pulse {
+    display: none;
+  }
+}
